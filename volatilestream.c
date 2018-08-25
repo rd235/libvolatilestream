@@ -21,45 +21,95 @@
  */
 
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
+#define VOLSTREAM_PAGESIZE 4096
+//#define VOLSTREAM_PAGESIZE 4
 
 struct volstream {
-	FILE *f;
 	char *buf;
-	size_t size;
+	size_t bufsize;
+	size_t filelen;
+	size_t filepos;
 };
 
 static ssize_t volstream_read(void *cookie, char *buf, size_t size) {
 	struct volstream *vols = cookie;
-	clearerr(vols->f);
-	ssize_t ret_value = fread(buf, 1, size, vols->f);
-	if (ret_value == 0 && ferror(vols->f) != 0)
-		ret_value = -1;
+	ssize_t ret_value;
+	if (vols->filepos + size <= vols->filelen)
+		ret_value = size;
+	else
+		ret_value = vols->filelen - vols->filepos;
+	if (ret_value > 0) {
+		memcpy(buf, vols->buf + vols->filepos, ret_value);
+		vols->filepos += ret_value;
+	}
 	return ret_value;
+}
+
+static inline void volstream_resize(struct volstream *vols, size_t newfilesize) {
+	if (newfilesize > vols->bufsize) {
+		size_t newsize = (newfilesize + (VOLSTREAM_PAGESIZE - 1)) & ~(VOLSTREAM_PAGESIZE - 1);
+    char *newbuf;
+    newbuf = realloc(vols->buf, newsize);
+    if (newbuf != NULL) {
+      vols->buf = newbuf;
+      vols->bufsize = newsize;
+		}
+	}
 }
 
 static ssize_t volstream_write(void *cookie, const char *buf, size_t size) {
 	struct volstream *vols = cookie;
-	return fwrite(buf, 1, size, vols->f);
+	ssize_t ret_value;
+	volstream_resize(vols, vols->filepos + size);
+	if (vols->filepos + size <= vols->bufsize)
+		ret_value = size;
+	else
+		ret_value = vols->bufsize - vols->filepos;
+	if (ret_value > 0) {
+		memcpy(vols->buf + vols->filepos, buf, ret_value);
+		vols->filepos += ret_value;
+		if (vols->filepos > vols->filelen)
+			vols->filelen = vols->filepos;
+	}
+	return ret_value;
 }
 
 static int volstream_seek(void *cookie, off64_t *offset, int whence) {
 	struct volstream *vols = cookie;
-	int ret_value = fseeko(vols->f, *offset, whence);
-	if (ret_value == 0)
-		*offset = ftello(vols->f);
-	return ret_value;
+	int ret_value;
+	off64_t newpos;
+	switch (whence) {
+		case SEEK_SET: newpos = *offset; break;
+		case SEEK_CUR: newpos = vols->filepos + *offset; break;
+		case SEEK_END: newpos = vols->filelen + *offset; break;
+	}
+	if (newpos < 0) {
+		errno = EINVAL;
+		return -1;
+	} else {
+		if (newpos > vols->filelen) {
+			volstream_resize(vols, newpos);
+			if (newpos > vols->bufsize)
+				newpos = vols->bufsize;
+			if (newpos > vols->filelen) {
+				memset(vols->buf + vols->filelen, 0, newpos - vols->filelen);
+				vols->filelen = newpos;
+			}
+		}
+		vols->filepos = newpos;
+		*offset = newpos;
+		return ret_value;
+	}
 }
 
 static int volstream_close(void *cookie) {
 	struct volstream *vols = cookie;
-	int ret_value = fclose(vols->f);
-	if (ret_value == 0) {
-		if (vols->buf)
-			free(vols->buf);
-		free(vols);
-	}
-	return ret_value;
+	free(vols->buf);
+	free(vols);
+	return 0;
 }
 
 static cookie_io_functions_t volstream_f = {
@@ -74,31 +124,37 @@ FILE *volstream_open(void) {
 	struct volstream *vols = malloc(sizeof(struct volstream));
 	if (vols == NULL)
 		goto err;
-	vols->buf = NULL;
-	vols->size = 0;
-	vols->f = open_memstream(&vols->buf, &vols->size);
-	if (vols->f == NULL)
-		goto errmemstream;
+	vols->buf = malloc(VOLSTREAM_PAGESIZE);
+	if (vols->buf == NULL)
+		goto buferr;
+	vols->bufsize = VOLSTREAM_PAGESIZE;
+	vols->filelen = 0;
+	vols->filepos = 0;
 	volstream = fopencookie(vols, "r+", volstream_f);
 	if (volstream == NULL)
-		goto errvolstream;
+		goto volstreamerr;
 	return volstream;
-errvolstream:
-	fclose(vols->f);
-errmemstream:
+volstreamerr:
+	free(vols);
+	return NULL;
+buferr:
 	free(vols);
 err:
+	errno = ENOMEM;
 	return NULL;
 }
 
+#if 0
 int main(int argc, char *argv[]) {
 	FILE *f = volstream_open();
 	int c;
-	for (argv++; *argv; argv++) 
+	for (argv++; *argv; argv++) {
 		fprintf(f, "%s\n", *argv);
+		fflush(f);
+	}
 	fseek(f, 0, SEEK_SET);
 	while ((c = getc(f)) != EOF)
-		putchar(c);
+		putchar(c == 0 ? '.' : c);
 	fclose(f);
 }
-
+#endif
