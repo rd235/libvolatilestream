@@ -24,6 +24,17 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <volatilestream.h>
+/* Alternative implementation using memfd_create.
+	 This is posix based, more portable across different non GNU environments.
+	 However it is slower than the open based on fopencookie */
+#if 0
+static inline FILE *volstream_open(void) {
+	int fd = memfd_create("volstream", MFD_CLOEXEC);
+	return fd < 0 ? NULL : fdopen(fd, "r+");
+}
+#endif
+
 #define VOLSTREAM_PAGESIZE 4096
 //#define VOLSTREAM_PAGESIZE 4
 
@@ -135,6 +146,7 @@ FILE *volstream_open(void) {
 		goto volstreamerr;
 	return volstream;
 volstreamerr:
+	free(vols->buf);
 	free(vols);
 	return NULL;
 buferr:
