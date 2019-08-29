@@ -21,7 +21,7 @@ set_target_properties(volatilestream PROPERTIES VERSION ${PROJECT_VERSION}
 
 configure_file(volatilestream.pc.in volatilestream.pc @ONLY)
 
-install(TARGETS volatilestream LIBRARY DESTINATION lib)
+install(TARGETS volatilestream LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES volatilestream.h DESTINATION ${HEADERS_INSTALL_PATH})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/volatilestream.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
