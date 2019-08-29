@@ -90,7 +90,6 @@ static ssize_t volstream_write(void *cookie, const char *buf, size_t size) {
 
 static int volstream_seek(void *cookie, off64_t *offset, int whence) {
 	struct volstream *vols = cookie;
-	int ret_value;
 	off64_t newpos;
 	switch (whence) {
 		case SEEK_SET: newpos = *offset; break;
@@ -112,7 +111,7 @@ static int volstream_seek(void *cookie, off64_t *offset, int whence) {
 		}
 		vols->filepos = newpos;
 		*offset = newpos;
-		return ret_value;
+		return 0;
 	}
 }
 
