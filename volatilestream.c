@@ -1,6 +1,6 @@
 /*
- *   volatilestreaam: 
- *   volatile stream = stdio FILE* stream as a temporary dynamically allocated 
+ *   volatilestreaam:
+ *   volatile stream = stdio FILE* stream as a temporary dynamically allocated
  *   (and deallocated) memory buffer
  *
  *   Copyright (C) 2018  Renzo Davoli <renzo@cs.unibo.it> VirtualSquare team.
@@ -95,6 +95,7 @@ static int volstream_seek(void *cookie, off64_t *offset, int whence) {
 		case SEEK_SET: newpos = *offset; break;
 		case SEEK_CUR: newpos = vols->filepos + *offset; break;
 		case SEEK_END: newpos = vols->filelen + *offset; break;
+		default:       errno = EINVAL; return -1;
 	}
 	if (newpos < 0) {
 		errno = EINVAL;
