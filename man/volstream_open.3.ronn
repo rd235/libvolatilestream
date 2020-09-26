@@ -32,6 +32,17 @@ volstream_open(3) -- create a FILE* stream as a volatile stream buffer
 
 `FILE *volstream_open(void);`
 
+`struct volstream;`
+
+`FILE *volstream_openv(struct volstream **`_vols_`);`
+
+`int volstream_trunc(struct volstream *`_vols_`, size_t `_length_`);`
+
+`void *volstream_getbuf(struct volstream *`_vols_`);`
+
+`size_t volstream_getsize(struct volstream *`_vols_`);`
+
+
 ## DESCRIPTION
 
 A volatile stream is a stdio FILE* stream as a temporary dynamically allocated
@@ -41,17 +52,40 @@ The `volstream_open` function opens a stdio stream as a temporary memory
 buffer. The buffer is dynamically allocated, grows as needed and it is
 automatically deallocated when the stream is closed.
 
+The function `volstream_openv` has the same effect of `volstream_open` but it
+stores in _vols_ a pointer that can be later used for `volstream_trunc`, `volstream_getbuf`
+and `volstream_getsize`.
+
+`volstream_trunc` truncates the buffer to the requested _length_. If the current size
+of the buffer is larger than _length_ the extra data is lost. If the buffer is shorter
+it is extended and the extended part is filled with null bytes.
+
+`volstream_getbuf` and `volstream_getsize` return the current address and size of the buffer, 
+respectively. These values remain valid only as long as the caller performs no further output
+on the stream or the stream is closed.
+
+`fflush` is required before `volstream_trunc`, `volstream_getbuf` and `volstream_getsize` to
+flush the stream buffers.
+
 ## RETURN VALUE
 
-Upon  successful  completion  volstream_open() returns a FILE pointer.
+Upon successful completion `volstream_open` and `volstream_open` return a FILE pointer.
 Otherwise, NULL is returned and errno is set to indicate the error.
 
-## EXAMPLE
+`volstream_trunc` returns -1 in case of error, 0 otherwise.
+
+`volstream_getbuf` and  `volstream_getsize`  return the current address and size of 
+the buffer, respectively.
+
+## EXAMPLES
 
 The following example writes all the command arguments in a volatile stream,
 then it rereads the volatile stream one byte at a time:
 
 ```
+#include <stdio.h>
+#include <volatilestream.h>
+
 int main(int argc, char *argv[]) {
   FILE *f = volstream_open();
   int c;
@@ -61,6 +95,28 @@ int main(int argc, char *argv[]) {
   while ((c = getc(f)) != EOF)
     putchar(c);
   fclose(f);
+}
+```
+
+The following example has the same effect but it rereads the arguments as a memory buffer.
+
+```
+#include <stdio.h>
+#include <unistd.h>
+#include <volatilestream.h>
+
+int main(int argc, char *argv[]) {
+  struct volstream *vols;
+  FILE *f = volstream_openv(&vols);
+  int c;
+  for (argv++; *argv; argv++) {
+    fprintf(f, "%s\n", *argv);
+  }
+  fflush(f);
+  ssize_t s = volstream_getsize(vols);
+  char *buf = volstream_getbuf(vols);
+	write(STDOUT_FILENO, buf, s);
+	fclose(f);
 }
 ```
 

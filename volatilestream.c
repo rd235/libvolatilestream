@@ -3,20 +3,15 @@
  *   volatile stream = stdio FILE* stream as a temporary dynamically allocated
  *   (and deallocated) memory buffer
  *
- *   Copyright (C) 2018  Renzo Davoli <renzo@cs.unibo.it> VirtualSquare team.
+ *   Copyright (C) 20182020  Renzo Davoli <renzo@cs.unibo.it> VirtualSquare team.
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 2 of the License, or
- *   (at your option) any later version.
+ *   This library is free software; you can redistribute it and/or modify it
+ *   under the terms of the GNU Lesser General Public License as published by
+ *   the Free Software Foundation; either version 2.1 of the License, or (at
+ *   your option) any later version.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *   You should have received a copy of the GNU Lesser General Public License
+ *   along with this library; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -25,18 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <volatilestream.h>
-/* Alternative implementation using memfd_create.
-	 This is posix based, more portable across different non GNU environments.
-	 However it is slower than the open based on fopencookie */
-#if 0
-static inline FILE *volstream_open(void) {
-	int fd = memfd_create("volstream", MFD_CLOEXEC);
-	return fd < 0 ? NULL : fdopen(fd, "r+");
-}
-#endif
 
 #define VOLSTREAM_PAGESIZE 4096
-//#define VOLSTREAM_PAGESIZE 4
 
 struct volstream {
 	char *buf;
@@ -59,7 +44,7 @@ static ssize_t volstream_read(void *cookie, char *buf, size_t size) {
 	return ret_value;
 }
 
-static inline void volstream_resize(struct volstream *vols, size_t newfilesize) {
+static inline void volstream_buf_expand(struct volstream *vols, size_t newfilesize) {
 	if (newfilesize > vols->bufsize) {
 		size_t newsize = (newfilesize + (VOLSTREAM_PAGESIZE - 1)) & ~(VOLSTREAM_PAGESIZE - 1);
     char *newbuf;
@@ -71,10 +56,24 @@ static inline void volstream_resize(struct volstream *vols, size_t newfilesize) 
 	}
 }
 
+static inline void volstream_buf_shrink(struct volstream *vols, size_t newfilesize) {
+	size_t newsize = (newfilesize + (VOLSTREAM_PAGESIZE - 1)) & ~(VOLSTREAM_PAGESIZE - 1);
+	if (newsize == 0)
+		newsize = VOLSTREAM_PAGESIZE;
+	if (newsize < vols->bufsize - VOLSTREAM_PAGESIZE) {
+		char *newbuf;
+    newbuf = realloc(vols->buf, newsize);
+    if (newbuf != NULL) {
+      vols->buf = newbuf;
+      vols->bufsize = newsize;
+    }
+	}
+}
+
 static ssize_t volstream_write(void *cookie, const char *buf, size_t size) {
 	struct volstream *vols = cookie;
 	ssize_t ret_value;
-	volstream_resize(vols, vols->filepos + size);
+	volstream_buf_expand(vols, vols->filepos + size);
 	if (vols->filepos + size <= vols->bufsize)
 		ret_value = size;
 	else
@@ -95,16 +94,15 @@ static int volstream_seek(void *cookie, off64_t *offset, int whence) {
 		case SEEK_SET: newpos = *offset; break;
 		case SEEK_CUR: newpos = vols->filepos + *offset; break;
 		case SEEK_END: newpos = vols->filelen + *offset; break;
-		default:       errno = EINVAL; return -1;
+		default:       return errno = EINVAL, -1;
 	}
 	if (newpos < 0) {
-		errno = EINVAL;
-		return -1;
+		return errno = EINVAL, -1;
 	} else {
 		if (newpos > vols->filelen) {
-			volstream_resize(vols, newpos);
+			volstream_buf_expand(vols, newpos);
 			if (newpos > vols->bufsize)
-				newpos = vols->bufsize;
+				return errno = EINVAL, -1;
 			if (newpos > vols->filelen) {
 				memset(vols->buf + vols->filelen, 0, newpos - vols->filelen);
 				vols->filelen = newpos;
@@ -123,6 +121,31 @@ static int volstream_close(void *cookie) {
 	return 0;
 }
 
+int volstream_trunc(struct volstream *vols, size_t length) {
+	if (length < 0)
+    return errno = EINVAL, -1;
+  else {
+		if (length > vols->filelen) {
+			volstream_buf_expand(vols, length);
+			if (length > vols->bufsize)
+				return errno = ENOMEM, -1;
+			if (length > vols->filelen)
+				memset(vols->buf + vols->filelen, 0, length - vols->filelen);
+		}
+		vols->filelen = length;
+		volstream_buf_shrink(vols, length);
+		return 0;
+	}
+}
+
+void *volstream_getbuf(struct volstream *vols) {
+	return vols->buf;
+}
+
+size_t volstream_getsize(struct volstream *vols) {
+	return vols->filelen;
+}
+
 static cookie_io_functions_t volstream_f = {
 	.read = volstream_read,
 	.write = volstream_write,
@@ -130,7 +153,7 @@ static cookie_io_functions_t volstream_f = {
 	.close = volstream_close
 };
 
-FILE *volstream_open(void) {
+FILE *volstream_openv(struct volstream **_vols) {
 	FILE *volstream;
 	struct volstream *vols = malloc(sizeof(struct volstream));
 	if (vols == NULL)
@@ -144,6 +167,8 @@ FILE *volstream_open(void) {
 	volstream = fopencookie(vols, "r+", volstream_f);
 	if (volstream == NULL)
 		goto volstreamerr;
+	if (_vols != NULL)
+		*_vols = vols;
 	return volstream;
 volstreamerr:
 	free(vols->buf);
@@ -154,6 +179,10 @@ buferr:
 err:
 	errno = ENOMEM;
 	return NULL;
+}
+
+FILE *volstream_open(void) {
+	return volstream_openv(NULL);
 }
 
 #if 0
@@ -168,5 +197,30 @@ int main(int argc, char *argv[]) {
 	while ((c = getc(f)) != EOF)
 		putchar(c == 0 ? '.' : c);
 	fclose(f);
+}
+#endif
+#if 0
+int main(int argc, char *argv[]) {
+	struct volstream *vols;
+	FILE *f = volstream_openv(&vols);
+	int c;
+	for (argv++; *argv; argv++) {
+		fprintf(f, "%s\n", *argv);
+		fflush(f);
+	}
+	fprintf(f,"FINE");
+	fflush(f);
+	volstream_trunc(vols, 100);
+	ssize_t s = volstream_getsize(vols);
+	char *buf = volstream_getbuf(vols);
+	ssize_t i;
+	for (i=0; i<s; i++)
+		putchar(buf[i] == 0 ? '.' : buf[i]);
+	printf("\n");
+	fseek(f, 0, SEEK_SET);
+	while ((c = getc(f)) != EOF)
+		putchar(c == 0 ? '.' : c);
+	fclose(f);
+	printf("\n");
 }
 #endif

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(volatilestream
-    VERSION 0.0.1
+    VERSION 0.2.0
     DESCRIPTION "FILE* stream as a temporary allocated memory buffer"
     HOMEPAGE_URL "https://github.com/rd235/libvolatilestream"
     LANGUAGES C)
@@ -27,3 +27,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/volatilestream.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 add_subdirectory(man)
+
+add_custom_target(uninstall
+  "${CMAKE_COMMAND}" -P "${PROJECT_SOURCE_DIR}/Uninstall.cmake")

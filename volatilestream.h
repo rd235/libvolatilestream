@@ -12,7 +12,7 @@
 /* the following example writes all the command arguments in a volatile stream,
 	 then it rereads the volatile stream one byte at a time */
 #if 0
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]);
 	FILE *f = volstream_open();
 	int c;
 	for (argv++; *argv; argv++) 
@@ -27,5 +27,11 @@ int main(int argc, char *argv[]) {
 #include <stdio.h>
 
 FILE *volstream_open(void);
+
+struct volstream;
+int volstream_trunc(struct volstream *vols, size_t length);
+void *volstream_getbuf(struct volstream *vols);
+size_t volstream_getsize(struct volstream *vols);
+FILE *volstream_openv(struct volstream **vols);
 
 #endif

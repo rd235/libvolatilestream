@@ -20,25 +20,50 @@
 .\" Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
 .\" MA 02110-1301 USA.
 .\"
-.\" generated with Ronn-NG/v0.8.0
-.\" http://github.com/apjanke/ronn-ng/tree/0.8.0
-.TH "VOLSTREAM_OPEN" "3" "October 2019" "VirtualSquare"
+.\" generated with Ronn-NG/v0.10.0
+.\" http://github.com/apjanke/ronn-ng/tree/0.10.0-SNAPSHOT
+.TH "VOLSTREAM_OPEN" "3" "September 2020" "VirtualSquare"
 .SH "NAME"
 \fBvolstream_open\fR \- create a FILE* stream as a volatile stream buffer
 .SH "SYNOPSIS"
 \fB#include <volatilestream\.h>\fR
 .P
 \fBFILE *volstream_open(void);\fR
+.P
+\fBstruct volstream;\fR
+.P
+\fBFILE *volstream_openv(struct volstream **\fR\fIvols\fR\fB);\fR
+.P
+\fBint volstream_trunc(struct volstream *\fR\fIvols\fR\fB, size_t\fR\fIlength\fR\fB);\fR
+.P
+\fBvoid *volstream_getbuf(struct volstream *\fR\fIvols\fR\fB);\fR
+.P
+\fBsize_t volstream_getsize(struct volstream *\fR\fIvols\fR\fB);\fR
 .SH "DESCRIPTION"
 A volatile stream is a stdio FILE* stream as a temporary dynamically allocated (and deallocated) memory buffer\.
 .P
 The \fBvolstream_open\fR function opens a stdio stream as a temporary memory buffer\. The buffer is dynamically allocated, grows as needed and it is automatically deallocated when the stream is closed\.
+.P
+The function \fBvolstream_openv\fR has the same effect of \fBvolstream_open\fR but it stores in \fIvols\fR a pointer that can be later used for \fBvolstream_trunc\fR, \fBvolstream_getbuf\fR and \fBvolstream_getsize\fR\.
+.P
+\fBvolstream_trunc\fR truncates the buffer to the requested \fIlength\fR\. If the current size of the buffer is larger than \fIlength\fR the extra data is lost\. If the buffer is shorter it is extended and the extended part is filled with null bytes\.
+.P
+\fBvolstream_getbuf\fR and \fBvolstream_getsize\fR return the current address and size of the buffer, respectively\. These values remain valid only as long as the caller performs no further output on the stream or the stream is closed\.
+.P
+\fBfflush\fR is required before \fBvolstream_trunc\fR, \fBvolstream_getbuf\fR and \fBvolstream_getsize\fR to flush the stream buffers\.
 .SH "RETURN VALUE"
-Upon successful completion volstream_open() returns a FILE pointer\. Otherwise, NULL is returned and errno is set to indicate the error\.
-.SH "EXAMPLE"
+Upon successful completion \fBvolstream_open\fR and \fBvolstream_open\fR return a FILE pointer\. Otherwise, NULL is returned and errno is set to indicate the error\.
+.P
+\fBvolstream_trunc\fR returns \-1 in case of error, 0 otherwise\.
+.P
+\fBvolstream_getbuf\fR and \fBvolstream_getsize\fR return the current address and size of the buffer, respectively\.
+.SH "EXAMPLES"
 The following example writes all the command arguments in a volatile stream, then it rereads the volatile stream one byte at a time:
 .IP "" 4
 .nf
+#include <stdio\.h>
+#include <volatilestream\.h>
+
 int main(int argc, char *argv[]) {
   FILE *f = volstream_open();
   int c;
@@ -48,6 +73,29 @@ int main(int argc, char *argv[]) {
   while ((c = getc(f)) != EOF)
     putchar(c);
   fclose(f);
+}
+.fi
+.IP "" 0
+.P
+The following example has the same effect but it rereads the arguments as a memory buffer\.
+.IP "" 4
+.nf
+#include <stdio\.h>
+#include <unistd\.h>
+#include <volatilestream\.h>
+
+int main(int argc, char *argv[]) {
+  struct volstream *vols;
+  FILE *f = volstream_openv(&vols);
+  int c;
+  for (argv++; *argv; argv++) {
+    fprintf(f, "%s\en", *argv);
+  }
+  fflush(f);
+  ssize_t s = volstream_getsize(vols);
+  char *buf = volstream_getbuf(vols);
+	write(STDOUT_FILENO, buf, s);
+	fclose(f);
 }
 .fi
 .IP "" 0
