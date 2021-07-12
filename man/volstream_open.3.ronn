@@ -115,8 +115,8 @@ int main(int argc, char *argv[]) {
   fflush(f);
   ssize_t s = volstream_getsize(vols);
   char *buf = volstream_getbuf(vols);
-	write(STDOUT_FILENO, buf, s);
-	fclose(f);
+  write(STDOUT_FILENO, buf, s);
+  fclose(f);
 }
 ```
 

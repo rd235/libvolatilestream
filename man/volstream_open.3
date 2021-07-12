@@ -22,7 +22,7 @@
 .\"
 .\" generated with Ronn-NG/v0.10.0
 .\" http://github.com/apjanke/ronn-ng/tree/0.10.0-SNAPSHOT
-.TH "VOLSTREAM_OPEN" "3" "September 2020" "VirtualSquare"
+.TH "VOLSTREAM_OPEN" "3" "July 2021" "VirtualSquare"
 .SH "NAME"
 \fBvolstream_open\fR \- create a FILE* stream as a volatile stream buffer
 .SH "SYNOPSIS"
@@ -94,8 +94,8 @@ int main(int argc, char *argv[]) {
   fflush(f);
   ssize_t s = volstream_getsize(vols);
   char *buf = volstream_getbuf(vols);
-	write(STDOUT_FILENO, buf, s);
-	fclose(f);
+  write(STDOUT_FILENO, buf, s);
+  fclose(f);
 }
 .fi
 .IP "" 0
