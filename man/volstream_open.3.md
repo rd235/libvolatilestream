@@ -1,6 +1,3 @@
-volstream_open(3) -- create a FILE* stream as a volatile stream buffer
-=====
-
 <!--
 .\" Copyright (C) 2019 VirtualSquare. Project Leader: Renzo Davoli
 .\"
@@ -25,10 +22,13 @@ volstream_open(3) -- create a FILE* stream as a volatile stream buffer
 .\" MA 02110-1301 USA.
 .\"
 -->
+# NAME
 
-## SYNOPSIS
+`volstream_open` -- create a FILE* stream as a volatile stream buffer
 
-`#include <volatilestream.h>`
+# SYNOPSIS
+
+`#include *volatilestream.h*`
 
 `FILE *volstream_open(void);`
 
@@ -43,7 +43,7 @@ volstream_open(3) -- create a FILE* stream as a volatile stream buffer
 `size_t volstream_getsize(struct volstream *`_vols_`);`
 
 
-## DESCRIPTION
+# DESCRIPTION
 
 A volatile stream is a stdio FILE* stream as a temporary dynamically allocated
 (and deallocated) memory buffer.
@@ -67,7 +67,7 @@ on the stream or the stream is closed.
 `fflush` is required before `volstream_trunc`, `volstream_getbuf` and `volstream_getsize` to
 flush the stream buffers.
 
-## RETURN VALUE
+# RETURN VALUE
 
 Upon successful completion `volstream_open` and `volstream_open` return a FILE pointer.
 Otherwise, NULL is returned and errno is set to indicate the error.
@@ -77,14 +77,14 @@ Otherwise, NULL is returned and errno is set to indicate the error.
 `volstream_getbuf` and  `volstream_getsize`  return the current address and size of 
 the buffer, respectively.
 
-## EXAMPLES
+# EXAMPLES
 
 The following example writes all the command arguments in a volatile stream,
 then it rereads the volatile stream one byte at a time:
 
 ```
-#include <stdio.h>
-#include <volatilestream.h>
+#include *stdio.h*
+#include *volatilestream.h*
 
 int main(int argc, char *argv[]) {
   FILE *f = volstream_open();
@@ -101,9 +101,9 @@ int main(int argc, char *argv[]) {
 The following example has the same effect but it rereads the arguments as a memory buffer.
 
 ```
-#include <stdio.h>
-#include <unistd.h>
-#include <volatilestream.h>
+#include *stdio.h*
+#include *unistd.h*
+#include *volatilestream.h*
 
 int main(int argc, char *argv[]) {
   struct volstream *vols;
@@ -120,5 +120,5 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-## AUTHOR
+# AUTHOR
 VirtualSquare. Project leader: Renzo Davoli.
