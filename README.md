@@ -25,35 +25,27 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-## v.0.2
-
-It is backwards compatible to v.0.1.
+## v.1.0
 
 New functions:
 ```C
-       struct volstream;
-       FILE *volstream_openv(struct volstream **vols);
-       int volstream_trunc(struct volstream *vols, size_tlength);
-       void *volstream_getbuf(struct volstream *vols);
-       size_t volstream_getsize(struct volstream *vols);
+       int volstream_trunc(FILE *f, size_t length);
+       int volstream_getbuf(FILE *f, void **buf, size_t *buflen);
 ```
-
-The function `volstream_openv` has the same effect of `volstream_open` but it
-stores in _vols_ a pointer that can be later used for `volstream_trunc`, `volstream_getbuf`
-and `volstream_getsize`.
 
 `volstream_trunc` truncates the buffer to the requested _length_. If the current size
 of the buffer is larger than _length_ the extra data is lost. If the buffer is shorter
 it is extended and the extended part is filled with null bytes.
 
-`volstream_getbuf` and `volstream_getsize` return the current address and size of the buffer,
-respectively. These values remain valid only as long as the caller performs no further output
+`volstream_getbuf` writes the current address and size of the buffer in `*buf` and `*buflen`
+respectively.
+These values remain valid only as long as the caller performs no further output
 on the stream or the stream is closed.
 
-`fflush` is required before `volstream_trunc`, `volstream_getbuf` and `volstream_getsize` to
-flush the stream buffers.
+`volstream_getbuf` returns 0  or -1 if an error occurred.  In the event
+of an error, errno is set to indicate the error.
 
-The following example has the same effect of the one above but it rereads the arguments as a 
+The following example has the same effect of the one above but it rereads the arguments as a
 memory buffer.
 
 ```
@@ -62,21 +54,18 @@ memory buffer.
 #include <volatilestream.h>
 
 int main(int argc, char *argv[]) {
-  struct volstream *vols;
-  FILE *f = volstream_openv(&vols);
+  FILE *f = volstream_open();
   int c;
   for (argv++; *argv; argv++) {
     fprintf(f, "%s\n", *argv);
   }
-  fflush(f);
-  ssize_t s = volstream_getsize(vols);
-  char *buf = volstream_getbuf(vols);
+  ssize_t s;
+  void *buf;
+  volstream_getbuf(f, &buf, &s);
   write(STDOUT_FILENO, buf, s);
   fclose(f);
 }
 ```
-
-
 
 ## Install
 

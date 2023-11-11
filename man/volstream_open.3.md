@@ -28,20 +28,15 @@
 
 # SYNOPSIS
 
-`#include *volatilestream.h*`
+`#include <volatilestream.h>`
 
 `FILE *volstream_open(void);`
 
 `struct volstream;`
 
-`FILE *volstream_openv(struct volstream **`_vols_`);`
+`int volstream_trunc(FILE *`_f_`, size_t  `_length_`);`
 
-`int volstream_trunc(struct volstream *`_vols_`, size_t `_length_`);`
-
-`void *volstream_getbuf(struct volstream *`_vols_`);`
-
-`size_t volstream_getsize(struct volstream *`_vols_`);`
-
+`int volstream_getbuf(FILE *`_f_`, void **`_buf_`, size_t *`_buflel_`);`
 
 # DESCRIPTION
 
@@ -52,30 +47,22 @@ The `volstream_open` function opens a stdio stream as a temporary memory
 buffer. The buffer is dynamically allocated, grows as needed and it is
 automatically deallocated when the stream is closed.
 
-The function `volstream_openv` has the same effect of `volstream_open` but it
-stores in _vols_ a pointer that can be later used for `volstream_trunc`, `volstream_getbuf`
-and `volstream_getsize`.
-
 `volstream_trunc` truncates the buffer to the requested _length_. If the current size
 of the buffer is larger than _length_ the extra data is lost. If the buffer is shorter
 it is extended and the extended part is filled with null bytes.
 
-`volstream_getbuf` and `volstream_getsize` return the current address and size of the buffer, 
-respectively. These values remain valid only as long as the caller performs no further output
+`volstream_getbuf` writes the current address and size of the buffer in `*buf` and `*buflen`
+respectively.
+These values remain valid only as long as the caller performs no further output
 on the stream or the stream is closed.
-
-`fflush` is required before `volstream_trunc`, `volstream_getbuf` and `volstream_getsize` to
-flush the stream buffers.
 
 # RETURN VALUE
 
-Upon successful completion `volstream_open` and `volstream_open` return a FILE pointer.
+Upon successful completion `volstream_open` returns a FILE pointer.
 Otherwise, NULL is returned and errno is set to indicate the error.
 
-`volstream_trunc` returns -1 in case of error, 0 otherwise.
-
-`volstream_getbuf` and  `volstream_getsize`  return the current address and size of 
-the buffer, respectively.
+`volstream_trunc` and `volstream_getbuf` return 0  or -1 if an error occurred.  In the event
+of an error, errno is set to indicate the error.
 
 # EXAMPLES
 
@@ -106,15 +93,15 @@ The following example has the same effect but it rereads the arguments as a memo
 #include *volatilestream.h*
 
 int main(int argc, char *argv[]) {
-  struct volstream *vols;
-  FILE *f = volstream_openv(&vols);
+  FILE *f = volstream_open();
   int c;
   for (argv++; *argv; argv++) {
     fprintf(f, "%s\n", *argv);
   }
   fflush(f);
-  ssize_t s = volstream_getsize(vols);
-  char *buf = volstream_getbuf(vols);
+  ssize_t s;
+  void *buf;
+  volstream_getbuf(f, &buf, &s);
   write(STDOUT_FILENO, buf, s);
   fclose(f);
 }

@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.12)
 project(volatilestream
-    VERSION 0.2.0
+    VERSION 1.0.0
     DESCRIPTION "FILE* stream as a temporary allocated memory buffer"
     HOMEPAGE_URL "https://github.com/rd235/libvolatilestream"
     LANGUAGES C)
 
 include(GNUInstallDirs)
 add_definitions(-D_GNU_SOURCE)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -pedantic -O2 -D_FORTIFY_SOURCE=2")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(HEADERS_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/include)

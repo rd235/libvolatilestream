@@ -36,7 +36,7 @@
 . ftr VB CB
 . ftr VBI CBI
 .\}
-.TH "VOLSTREAM_OPEN" "3" "December 2022" "" "Library Functions Manual"
+.TH "VOLSTREAM_OPEN" "3" "November 2023" "VirtualSquare" "Library Functions Manual"
 .hy
 .SH NAME
 .PP
@@ -44,19 +44,15 @@
 stream buffer
 .SH SYNOPSIS
 .PP
-\f[V]#include *volatilestream.h*\f[R]
+\f[V]#include <volatilestream.h>\f[R]
 .PP
 \f[V]FILE *volstream_open(void);\f[R]
 .PP
 \f[V]struct volstream;\f[R]
 .PP
-\f[V]FILE *volstream_openv(struct volstream **\f[R]\f[I]vols\f[R]\f[V]);\f[R]
+\f[V]int volstream_trunc(FILE *\f[R]\f[I]f\f[R]\f[V], size_t\f[R]\f[I]length\f[R]\f[V]);\f[R]
 .PP
-\f[V]int volstream_trunc(struct volstream *\f[R]\f[I]vols\f[R]\f[V], size_t\f[R]\f[I]length\f[R]\f[V]);\f[R]
-.PP
-\f[V]void *volstream_getbuf(struct volstream *\f[R]\f[I]vols\f[R]\f[V]);\f[R]
-.PP
-\f[V]size_t volstream_getsize(struct volstream *\f[R]\f[I]vols\f[R]\f[V]);\f[R]
+\f[V]int volstream_getbuf(FILE *\f[R]\f[I]f\f[R]\f[V], void **\f[R]\f[I]buf\f[R]\f[V], size_t *\f[R]\f[I]buflel\f[R]\f[V]);\f[R]
 .SH DESCRIPTION
 .PP
 A volatile stream is a stdio FILE* stream as a temporary dynamically
@@ -67,11 +63,6 @@ temporary memory buffer.
 The buffer is dynamically allocated, grows as needed and it is
 automatically deallocated when the stream is closed.
 .PP
-The function \f[V]volstream_openv\f[R] has the same effect of
-\f[V]volstream_open\f[R] but it stores in \f[I]vols\f[R] a pointer that
-can be later used for \f[V]volstream_trunc\f[R],
-\f[V]volstream_getbuf\f[R] and \f[V]volstream_getsize\f[R].
-.PP
 \f[V]volstream_trunc\f[R] truncates the buffer to the requested
 \f[I]length\f[R].
 If the current size of the buffer is larger than \f[I]length\f[R] the
@@ -79,24 +70,19 @@ extra data is lost.
 If the buffer is shorter it is extended and the extended part is filled
 with null bytes.
 .PP
-\f[V]volstream_getbuf\f[R] and \f[V]volstream_getsize\f[R] return the
-current address and size of the buffer, respectively.
+\f[V]volstream_getbuf\f[R] writes the current address and size of the
+buffer in \f[V]*buf\f[R] and \f[V]*buflen\f[R] respectively.
 These values remain valid only as long as the caller performs no further
 output on the stream or the stream is closed.
-.PP
-\f[V]fflush\f[R] is required before \f[V]volstream_trunc\f[R],
-\f[V]volstream_getbuf\f[R] and \f[V]volstream_getsize\f[R] to flush the
-stream buffers.
 .SH RETURN VALUE
 .PP
-Upon successful completion \f[V]volstream_open\f[R] and
-\f[V]volstream_open\f[R] return a FILE pointer.
+Upon successful completion \f[V]volstream_open\f[R] returns a FILE
+pointer.
 Otherwise, NULL is returned and errno is set to indicate the error.
 .PP
-\f[V]volstream_trunc\f[R] returns -1 in case of error, 0 otherwise.
-.PP
-\f[V]volstream_getbuf\f[R] and \f[V]volstream_getsize\f[R] return the
-current address and size of the buffer, respectively.
+\f[V]volstream_trunc\f[R] and \f[V]volstream_getbuf\f[R] return 0 or -1
+if an error occurred.
+In the event of an error, errno is set to indicate the error.
 .SH EXAMPLES
 .PP
 The following example writes all the command arguments in a volatile
@@ -130,15 +116,15 @@ as a memory buffer.
 #include *volatilestream.h*
 
 int main(int argc, char *argv[]) {
-  struct volstream *vols;
-  FILE *f = volstream_openv(&vols);
+  FILE *f = volstream_open();
   int c;
   for (argv++; *argv; argv++) {
     fprintf(f, \[dq]%s\[rs]n\[dq], *argv);
   }
   fflush(f);
-  ssize_t s = volstream_getsize(vols);
-  char *buf = volstream_getbuf(vols);
+  ssize_t s;
+  void *buf;
+  volstream_getbuf(f, &buf, &s);
   write(STDOUT_FILENO, buf, s);
   fclose(f);
 }

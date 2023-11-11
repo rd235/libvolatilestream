@@ -7,15 +7,15 @@
 	 The buffer is dynamically allocated, grows as needed and it is automatically
 	 deallocated when the stream is closed.
 
-	 */
+ */
 
 /* the following example writes all the command arguments in a volatile stream,
 	 then it rereads the volatile stream one byte at a time */
 #if 0
-int main(int argc, char *argv[]);
+int main(int argc, char *argv[]) {
 	FILE *f = volstream_open();
 	int c;
-	for (argv++; *argv; argv++) 
+	for (argv++; *argv; argv++)
 		fprintf(f, "%s\n", *argv);
 	fseek(f, 0, SEEK_SET);
 	while ((c = getc(f)) != EOF)
@@ -28,10 +28,7 @@ int main(int argc, char *argv[]);
 
 FILE *volstream_open(void);
 
-struct volstream;
-int volstream_trunc(struct volstream *vols, size_t length);
-void *volstream_getbuf(struct volstream *vols);
-size_t volstream_getsize(struct volstream *vols);
-FILE *volstream_openv(struct volstream **vols);
+int volstream_trunc(FILE *f, size_t length);
+int volstream_getbuf(FILE *f, void **buf, size_t *buflen);
 
 #endif
