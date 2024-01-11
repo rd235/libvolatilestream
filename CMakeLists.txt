@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(volatilestream
-    VERSION 1.0.0
+    VERSION 1.0.1
     DESCRIPTION "FILE* stream as a temporary allocated memory buffer"
     HOMEPAGE_URL "https://github.com/rd235/libvolatilestream"
     LANGUAGES C)
