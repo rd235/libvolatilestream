@@ -32,8 +32,6 @@
 
 `FILE *volstream_open(void);`
 
-`struct volstream;`
-
 `int volstream_trunc(FILE *`_f_`, size_t ` _length_`);`
 
 `int volstream_getbuf(FILE *`_f_`, void **`_buf_`, size_t *`_buflen_`);`
